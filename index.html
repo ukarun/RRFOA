@@ -58,11 +58,13 @@
   .hint{font-size:12.5px;color:var(--muted);margin-top:4px}
   .row{display:flex;gap:10px}
   .row .field{flex:1}
-  .pills{display:flex;gap:8px}
+  .pills{display:flex;gap:6px}
+  .pills-stack{flex-direction:column}
   .pills input{position:absolute;opacity:0;width:0}
   .pills label{
-    flex:1;text-align:center;padding:11px 0;font-size:15px;font-weight:600;
-    border:1.5px solid var(--line);border-radius:8px;cursor:pointer;margin:0;
+    flex:1;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:10px 4px;font-size:13px;font-weight:600;
+    line-height:1.25;border:1.5px solid var(--line);border-radius:8px;cursor:pointer;margin:0;
   }
   .pills input:checked + label{background:var(--green);border-color:var(--green);color:#fff}
   .pills input:focus-visible + label{outline:2px solid var(--green-dark);outline-offset:2px}
@@ -98,7 +100,7 @@
         <input type="text" id="flatNo" name="flatNo" required placeholder="e.g., 101">
       </div>
       <div class="field">
-        <label for="name">Resident Name <span class="req">*</span></label>
+        <label for="name">Name <span class="req">*</span></label>
         <input type="text" id="name" name="name" required autocomplete="name">
       </div>
       <div class="field">
@@ -107,27 +109,30 @@
                pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number">
         <div class="hint">WhatsApp number preferred</div>
       </div>
-      <div class="field">
+      <div class="field" id="altField">
         <label for="altContact">Alternate Contact Number</label>
         <input type="tel" id="altContact" name="altContact" inputmode="numeric"
                pattern="[0-9]{10}" maxlength="10">
       </div>
       <div class="field">
-        <label>Owner or Tenant <span class="req">*</span></label>
+        <label>Occupancy Type <span class="req">*</span></label>
         <div class="pills">
-          <input type="radio" id="owner" name="ownerTenant" value="Owner" required>
-          <label for="owner">Owner</label>
+          <input type="radio" id="ownerRes" name="ownerTenant" value="Owner - Resident" required>
+          <label for="ownerRes">Owner<br>Resident</label>
+          <input type="radio" id="ownerNonRes" name="ownerTenant" value="Owner - Non-resident">
+          <label for="ownerNonRes">Owner<br>Non-resident</label>
           <input type="radio" id="tenant" name="ownerTenant" value="Tenant">
           <label for="tenant">Tenant</label>
         </div>
+        <div class="hint">Non-resident owners only need to share their email ID</div>
       </div>
       <div class="field">
-        <label for="email">Email ID</label>
+        <label for="email">Email ID <span class="req" id="emailReq" style="display:none">*</span></label>
         <input type="email" id="email" name="email" autocomplete="email" placeholder="For association circulars">
       </div>
     </fieldset>
 
-    <fieldset>
+    <fieldset id="familySet">
       <legend>Family Members</legend>
       <div class="row">
         <div class="field">
@@ -145,7 +150,7 @@
       </div>
     </fieldset>
 
-    <fieldset>
+    <fieldset id="vehicleSet">
       <legend>Vehicles</legend>
       <div class="field">
         <label for="carsCount">Number of Cars</label>
@@ -173,7 +178,7 @@
       </div>
     </fieldset>
 
-    <fieldset>
+    <fieldset id="emergencySet">
       <legend>Emergency</legend>
       <div class="field">
         <label for="emergencyContact">Emergency Contact (Name &amp; Number)</label>
@@ -204,6 +209,26 @@
   }
   document.getElementById("adults").addEventListener("input", updateTotal);
   document.getElementById("kids").addEventListener("input", updateTotal);
+
+  // Non-resident owners: hide everything except flat, name, contact, email
+  function applyResidencyMode(){
+    const sel = document.querySelector('input[name="ownerTenant"]:checked');
+    const nonRes = sel && sel.value === "Owner - Non-resident";
+    ["altField","familySet","vehicleSet","emergencySet"].forEach(id =>
+      document.getElementById(id).style.display = nonRes ? "none" : "");
+    document.getElementById("email").required = nonRes;
+    document.getElementById("emailReq").style.display = nonRes ? "inline" : "none";
+    document.getElementById("adults").required = !nonRes;
+    document.getElementById("kids").required = !nonRes;
+    if (nonRes){
+      document.getElementById("carsCount").value = "0";
+      document.getElementById("bikesCount").value = "0";
+      buildVehicleInputs("carsCount","carNumField","carInputs","Car");
+      buildVehicleInputs("bikesCount","bikeNumField","bikeInputs","Bike");
+    }
+  }
+  document.querySelectorAll('input[name="ownerTenant"]').forEach(r =>
+    r.addEventListener("change", applyResidencyMode));
 
   // Build one text box per vehicle based on the selected count
   function buildVehicleInputs(selectId, fieldId, containerId, vehicle){
@@ -265,6 +290,7 @@
         msg.className = "msg ok";
         form.reset();
         updateTotal();
+        applyResidencyMode();
         buildVehicleInputs("carsCount","carNumField","carInputs","Car");
         buildVehicleInputs("bikesCount","bikeNumField","bikeInputs","Bike");
       } else {
