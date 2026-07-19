@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Resident Details — Apartment Association</title>
+<title>Resident Details Form — Rajparis Ramnivas</title>
 <style>
   :root{
     --ink:#1f2a24;
@@ -79,13 +79,14 @@
   .msg.ok{display:block;background:#e6f2ec;color:var(--green-dark)}
   .msg.err{display:block;background:#fdeceb;color:var(--error)}
   footer{max-width:520px;margin:14px auto 0;text-align:center;font-size:12px;color:var(--muted)}
+  #carInputs input,#bikeInputs input{margin-bottom:8px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Apartment Association</div>
-    <h1>Resident Details</h1>
+    <div class="eyebrow">Rajparis Ramnivas</div>
+    <h1>Resident Details Form</h1>
     <p>One submission per flat. Takes about 2 minutes.</p>
   </header>
 
@@ -94,7 +95,7 @@
       <legend>Flat &amp; Contact</legend>
       <div class="field">
         <label for="flatNo">Flat No <span class="req">*</span></label>
-        <input type="text" id="flatNo" name="flatNo" required placeholder="e.g., B-204">
+        <input type="text" id="flatNo" name="flatNo" required placeholder="e.g., 101">
       </div>
       <div class="field">
         <label for="name">Resident Name <span class="req">*</span></label>
@@ -147,28 +148,28 @@
     <fieldset>
       <legend>Vehicles</legend>
       <div class="field">
-        <label for="carsCount">Number of Cars <span class="req">*</span></label>
-        <select id="carsCount" name="carsCount" required>
+        <label for="carsCount">Number of Cars</label>
+        <select id="carsCount" name="carsCount">
           <option value="0">0</option><option value="1">1</option>
           <option value="2">2</option><option value="3+">3 or more</option>
         </select>
       </div>
       <div class="field" id="carNumField" style="display:none">
-        <label for="carNumbers">Car Registration Number(s)</label>
-        <input type="text" id="carNumbers" name="carNumbers" placeholder="TN 09 AB 1234, TN 10 CD 5678">
-        <div class="hint">Separate multiple numbers with commas</div>
+        <label>Car Registration Number(s) <span class="req">*</span></label>
+        <div id="carInputs"></div>
+        <input type="hidden" id="carNumbers" name="carNumbers">
       </div>
       <div class="field">
-        <label for="bikesCount">Number of Bikes <span class="req">*</span></label>
-        <select id="bikesCount" name="bikesCount" required>
+        <label for="bikesCount">Number of Bikes</label>
+        <select id="bikesCount" name="bikesCount">
           <option value="0">0</option><option value="1">1</option>
           <option value="2">2</option><option value="3+">3 or more</option>
         </select>
       </div>
       <div class="field" id="bikeNumField" style="display:none">
-        <label for="bikeNumbers">Bike Registration Number(s)</label>
-        <input type="text" id="bikeNumbers" name="bikeNumbers" placeholder="TN 09 EF 9012">
-        <div class="hint">Separate multiple numbers with commas</div>
+        <label>Bike Registration Number(s) <span class="req">*</span></label>
+        <div id="bikeInputs"></div>
+        <input type="hidden" id="bikeNumbers" name="bikeNumbers">
       </div>
     </fieldset>
 
@@ -204,19 +205,50 @@
   document.getElementById("adults").addEventListener("input", updateTotal);
   document.getElementById("kids").addEventListener("input", updateTotal);
 
-  // Show vehicle number fields only when count > 0
-  function toggleField(selectId, fieldId){
-    const show = document.getElementById(selectId).value !== "0";
-    document.getElementById(fieldId).style.display = show ? "block" : "none";
+  // Build one text box per vehicle based on the selected count
+  function buildVehicleInputs(selectId, fieldId, containerId, vehicle){
+    const val = document.getElementById(selectId).value;
+    const field = document.getElementById(fieldId);
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+
+    if (val === "0"){ field.style.display = "none"; return; }
+    field.style.display = "block";
+
+    const count = (val === "3+") ? 3 : parseInt(val);
+    for (let i = 1; i <= count; i++){
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.required = true;
+      inp.placeholder = vehicle + " " + i + " — e.g., TN 09 AB 1234";
+      inp.className = "vehicle-num";
+      container.appendChild(inp);
+    }
+    if (val === "3+"){
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.textContent = "More than 3? Add extra numbers in the last box, separated by commas.";
+      container.appendChild(hint);
+    }
   }
   document.getElementById("carsCount").addEventListener("change",
-    () => toggleField("carsCount","carNumField"));
+    () => buildVehicleInputs("carsCount","carNumField","carInputs","Car"));
   document.getElementById("bikesCount").addEventListener("change",
-    () => toggleField("bikesCount","bikeNumField"));
+    () => buildVehicleInputs("bikesCount","bikeNumField","bikeInputs","Bike"));
+
+  // Join the individual boxes into one comma-separated value for the backend
+  function collectVehicleNumbers(containerId, hiddenId){
+    const values = [...document.querySelectorAll("#" + containerId + " input")]
+      .map(i => i.value.trim())
+      .filter(v => v !== "");
+    document.getElementById(hiddenId).value = values.join(", ");
+  }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     updateTotal();
+    collectVehicleNumbers("carInputs","carNumbers");
+    collectVehicleNumbers("bikeInputs","bikeNumbers");
     btn.disabled = true;
     btn.textContent = "Saving…";
     msg.className = "msg";
@@ -233,8 +265,8 @@
         msg.className = "msg ok";
         form.reset();
         updateTotal();
-        toggleField("carsCount","carNumField");
-        toggleField("bikesCount","bikeNumField");
+        buildVehicleInputs("carsCount","carNumField","carInputs","Car");
+        buildVehicleInputs("bikesCount","bikeNumField","bikeInputs","Bike");
       } else {
         msg.textContent = data.message || "Something went wrong. Please try again.";
         msg.className = "msg err";
